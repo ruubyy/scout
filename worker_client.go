@@ -57,12 +57,10 @@ func (r *redisWorkerClient) Push(class string, args map[string]interface{}) (str
 
     // Convert JSON bytes to string
     jsonString := string(jsonBytes)
-	return workers.EnqueueWithOptions(
+	return workers.EnqueueIn(
 		r.queue,
 		class,
-		jsonString,
-		workers.EnqueueOptions{
-			Retry: true,
-		},
+		5.0,
+		[]string{jsonString},
 	)
 }
