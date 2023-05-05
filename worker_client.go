@@ -5,12 +5,13 @@ import (
 	"errors"
 
 	"github.com/jrallison/go-workers"
+	log "github.com/sirupsen/logrus"
 )
 
 // WorkerClient is an interface for enqueueing workers
 type WorkerClient interface {
 	// Push pushes a worker onto the queue
-	Push(class, args string) (string, error)
+	Push(class string, args map[string]interface{}) (string, error)
 }
 
 type redisWorkerClient struct {
@@ -47,13 +48,19 @@ func NewRedisWorkerClient(redis RedisConfig) (WorkerClient, error) {
 	return &redisWorkerClient{queue: redis.Queue}, nil
 }
 
-func (r *redisWorkerClient) Push(class, args string) (string, error) {
+func (r *redisWorkerClient) Push(class string, args map[string]interface{}) (string, error) {
 	// This will hopefully deserialize on the ruby end as a hash
-	jsonArgs := json.RawMessage([]byte(args))
+	jsonBytes, err := json.Marshal(args)
+    if err != nil {
+		log.Error("Error converting to JSON: ", err.Error())
+    }
+
+    // Convert JSON bytes to string
+    jsonString := string(jsonBytes)
 	return workers.EnqueueWithOptions(
 		r.queue,
 		class,
-		[]*json.RawMessage{&jsonArgs},
+		jsonString,
 		workers.EnqueueOptions{
 			Retry: true,
 		},

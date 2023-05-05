@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"strings"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -25,7 +24,7 @@ type Queue interface {
 type queue struct {
 	WorkerClient WorkerClient
 	SQSClient    SQSClient
-	Topics       map[string]string
+	Worker       string
 	Sem          *sync.WaitGroup
 }
 
@@ -45,9 +44,9 @@ func NewQueue(config *Config) (Queue, error) {
 		return nil, err
 	}
 
-	queue.Topics = config.Queue.Topics
-	if len(queue.Topics) == 0 {
-		return nil, errors.New("No topics defined")
+	queue.Worker = config.Queue.Worker
+	if queue.Worker == "" {
+		return nil, errors.New("No worker defined")
 	}
 
 	queue.Sem = new(sync.WaitGroup)
@@ -91,43 +90,21 @@ func (q *queue) deleteMessage(msg Message, ctx log.FieldLogger) {
 
 // enqueueMessage pushes a single message from SQS into redis
 func (q *queue) enqueueMessage(msg Message, ctx log.FieldLogger) bool {
-	body := make(map[string]json.RawMessage)
+	body := make(map[string]interface{})
 	err := json.Unmarshal([]byte(msg.Body), &body)
 	if err != nil {
 		ctx.Warn("Message body could not be parsed: ", err.Error())
 		return true
 	}
 
-	var topicARN string
-	err = json.Unmarshal(body["TopicArn"], &topicARN)
-	if err != nil {
-		ctx.Warn("Topic ARN could not be parsed: ", err.Error())
-		return true
-	}
+	workerClass := q.Worker
 
-	workerClass, ok := q.Topics[topicName(topicARN)]
-	if !ok {
-		ctx.Warn("No worker for topic: ", topicName(topicARN))
-		return true
-	}
-
-	var bodyMessage string
-	err = json.Unmarshal(body["Message"], &bodyMessage)
-	if err != nil {
-		ctx.Warn("'Message' field could not be parsed: ", err.Error())
-	}
-
-	jid, err := q.WorkerClient.Push(workerClass, bodyMessage)
+	jid, err := q.WorkerClient.Push(workerClass, body)
 	if err != nil {
 		ctx.WithField("Class", workerClass).Error("Couldn't enqueue worker: ", err.Error())
 		return false
 	}
 
-	ctx.WithField("Args", bodyMessage).Info("Enqueued job: ", jid)
+	ctx.WithField("Args", body).Info("Enqueued job: ", jid)
 	return true
-}
-
-func topicName(topicARN string) string {
-	toks := strings.Split(topicARN, ":")
-	return toks[len(toks)-1]
 }

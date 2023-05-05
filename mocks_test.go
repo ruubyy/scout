@@ -44,7 +44,7 @@ type MockWorkerClient struct {
 	EnqueueError error
 }
 
-func (m *MockWorkerClient) Push(class, args string) (string, error) {
+func (m *MockWorkerClient) Push(class, args map[string]interface{}) (string, error) {
 	m.Enqueued = append(m.Enqueued, []string{class, args})
 	return m.EnqueuedJID, m.EnqueueError
 }

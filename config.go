@@ -35,8 +35,8 @@ type AWSConfig struct {
 // QueueConfig is a nested config that gives the SQS queue to listen on
 // and a mapping of topics to workeers
 type QueueConfig struct {
-	Name   string            `yaml:"name"`
-	Topics map[string]string `yaml:"topics"`
+	Name   string `yaml:"name"`
+	Worker string `yaml:"worker"`
 }
 
 // SQSConfig is a nested config meant to be passed directly to the SQS client

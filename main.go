@@ -113,9 +113,7 @@ func runApp(ctx *cli.Context) error {
 	}
 
 	log.Info("Now listening on queue: ", config.Queue.Name)
-	for topic, worker := range config.Queue.Topics {
-		log.Infof("%s -> %s", topic, worker)
-	}
+	log.Infof("-> %s", config.Queue.Worker)
 
 	Listen(queue, time.Tick(time.Duration(frequency)*time.Millisecond))
 	return nil
